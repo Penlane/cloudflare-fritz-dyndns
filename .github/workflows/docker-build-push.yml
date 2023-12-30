@@ -1,7 +1,7 @@
 name: Build and push Docker images to GitHub Packages
 on: push
 jobs:
-  cloudflare_dyndns_docker-build-push:
+  cloudflare_fritz_dyndns_docker-build-push:
     name: Build and push cloudflare-dyndns docker image
     runs-on: ubuntu-latest
     steps:
