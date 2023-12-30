@@ -28,27 +28,33 @@ def main():
 
         if not zones:
             return flask.jsonify({'status': 'error', 'message': 'Zone {} does not exist.'.format(zone)}), 404
-
+        
+        # Not sure if this will still work, need to test
         record_zone_concat = '{}.{}'.format(record, zone) if record is not None else zone
 
-        a_record = cf.zones.dns_records.get(zones[0]['id'], params={
-                                            'name': record_zone_concat, 'match': 'all', 'type': 'A'})
-        aaaa_record = cf.zones.dns_records.get(zones[0]['id'], params={
-                                            'name': record_zone_concat, 'match': 'all', 'type': 'AAAA'})
+        cfParams = { 'match': 'all' }
 
-        if ipv4 is not None and not a_record:
-            return flask.jsonify({'status': 'error', 'message': f'A record for {record_zone_concat} does not exist.'}), 404
+        if record:
+            cfParams['name'] = record_zone_concat
 
-        if ipv6 is not None and not aaaa_record:
-            return flask.jsonify({'status': 'error', 'message': f'AAAA record for {record_zone_concat} does not exist.'}), 404
+        cfParams['type'] = 'A'
+        a_records = cf.zones.dns_records.get(zones[0]['id'], params=cfParams)
+        cfParams['type'] = 'AAAA'
+        aaaa_records = cf.zones.dns_records.get(zones[0]['id'], params=cfParams)
 
-        if ipv4 is not None and a_record[0]['content'] != ipv4:
-            cf.zones.dns_records.put(zones[0]['id'], a_record[0]['id'], data={
-                                     'name': a_record[0]['name'], 'type': 'A', 'content': ipv4, 'proxied': a_record[0]['proxied'], 'ttl': a_record[0]['ttl']})
+        for a_record in a_records:
+            if ipv4 is not None and not a_record:
+                return flask.jsonify({'status': 'error', 'message': f'A record for {record_zone_concat} does not exist.'}), 404
+            
+            if ipv4 is not None and a_record['content'] != ipv4:
+                cf.zones.dns_records.patch(zones[0]['id'], a_record['id'], data={'content': ipv4})
 
-        if ipv6 is not None and aaaa_record[0]['content'] != ipv6:
-            cf.zones.dns_records.put(zones[0]['id'], aaaa_record[0]['id'], data={
-                                     'name': aaaa_record[0]['name'], 'type': 'AAAA', 'content': ipv6, 'proxied': aaaa_record[0]['proxied'], 'ttl': aaaa_record[0]['ttl']})
+        for aaaa_record in aaaa_records:
+            if ipv6 is not None and not aaaa_record:
+                return flask.jsonify({'status': 'error', 'message': f'AAAA record for {record_zone_concat} does not exist.'}), 404
+
+            if ipv6 is not None and aaaa_record['content'] != ipv6:
+                cf.zones.dns_records.patch(zones[0]['id'], aaaa_record['id'], data={'content': ipv6})
     except CloudFlare.exceptions.CloudFlareAPIError as e:
         return flask.jsonify({'status': 'error', 'message': str(e)}), 500
 
